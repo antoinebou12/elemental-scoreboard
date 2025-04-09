@@ -1,10 +1,13 @@
-
 import { useState, useEffect } from 'react';
+import io from 'socket.io-client';
 import { Element } from '@/types/elements';
 import ElementCard from '@/components/ElementCard';
 import AdminPanel from '@/components/AdminPanel';
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const initialElements: Element[] = [
   { id: 'fire', name: 'Feu', color: 'fire', points: 0, icon: 'fire' },
@@ -22,15 +25,30 @@ const Index = () => {
     return savedElements ? JSON.parse(savedElements) : initialElements;
   });
   
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passcode, setPasscode] = useState('');
   const { toast } = useToast();
+  const correctPasscode = '1234'; // You can change this to any passcode you want
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(elements));
   }, [elements]);
 
+  useEffect(() => {
+    const socket = io();
+    
+    socket.on('scoreUpdated', (data) => {
+      setElements(data);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
   const handleUpdatePoints = (id: string, action: 'INCREMENT' | 'DECREMENT' | 'SET', value?: number) => {
-    setElements(prevElements => 
-      prevElements.map(element => {
+    setElements(prevElements => {
+      const newElements = prevElements.map(element => {
         if (element.id === id) {
           let newPoints = element.points;
           
@@ -63,8 +81,14 @@ const Index = () => {
           return { ...element, points: newPoints };
         }
         return element;
-      })
-    );
+      });
+
+      // Emit score update through WebSocket
+      const socket = io();
+      socket.emit('scoreUpdate', newElements);
+      
+      return newElements;
+    });
   };
 
   const resetScores = () => {
@@ -80,6 +104,26 @@ const Index = () => {
     }
   };
 
+  const handlePasscodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passcode === correctPasscode) {
+      setIsAuthenticated(true);
+      toast({
+        title: "Authentification réussie",
+        description: "Vous avez maintenant accès au panneau d'administration.",
+      });
+    } else {
+      toast({
+        title: "Code incorrect",
+        description: "Veuillez réessayer avec le bon code.",
+        variant: "destructive"
+      });
+      setPasscode('');
+    }
+  };
+
+  const totalScore = elements.reduce((sum, element) => sum + element.points, 0);
+
   return (
     <div className="min-h-screen bg-black">
       <Tabs defaultValue="scores" className="container mx-auto px-4 py-2">
@@ -89,7 +133,10 @@ const Index = () => {
         </TabsList>
         
         <TabsContent value="scores" className="py-2">
-          <div className="grid grid-cols-5 gap-4 h-screen items-center px-4">
+          <div className="text-center mb-4">
+            <h2 className="text-2xl font-bold text-white">Score Total: {totalScore}</h2>
+          </div>
+          <div className="grid grid-cols-5 gap-4 h-[calc(100vh-120px)] px-4">
             {elements.map(element => (
               <ElementCard 
                 key={element.id}
@@ -100,11 +147,32 @@ const Index = () => {
         </TabsContent>
         
         <TabsContent value="admin" className="pt-12 pb-8">
-          <AdminPanel 
-            elements={elements}
-            onUpdatePoints={handleUpdatePoints}
-            onResetScores={resetScores}
-          />
+          {!isAuthenticated ? (
+            <Card className="max-w-md mx-auto">
+              <CardHeader>
+                <CardTitle>Authentification requise</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handlePasscodeSubmit} className="space-y-4">
+                  <Input
+                    type="password"
+                    placeholder="Entrez le code"
+                    value={passcode}
+                    onChange={(e) => setPasscode(e.target.value)}
+                  />
+                  <Button type="submit" className="w-full">
+                    Accéder
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          ) : (
+            <AdminPanel 
+              elements={elements}
+              onUpdatePoints={handleUpdatePoints}
+              onResetScores={resetScores}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>
