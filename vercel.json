@@ -3,7 +3,12 @@
   "builds": [
     {
       "src": "package.json",
-      "use": "@vercel/next"
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
     }
   ],
   "regions": ["cdg1"],
@@ -12,12 +17,12 @@
   },
   "routes": [
     {
-      "src": "/socket.io/(.*)",
-      "dest": "/api/socketio"
+      "src": "/api/socket",
+      "dest": "/api/socket.js"
     },
     {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/index.html"
     }
   ]
 }

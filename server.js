@@ -1,24 +1,31 @@
-import { Server } from 'socket.io';
-import { createServer } from 'http';
 import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import cors from 'cors';
 
 const app = express();
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
+
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: [
-      'https://*.app.github.dev',
-      'http://localhost:8080',
-      'http://localhost:3001'
-    ],
+    origin: '*',
     methods: ['GET', 'POST'],
     credentials: true
   },
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
-app.use(cors());
+app.get('/health', (req, res) => {
+  res.send('OK');
+});
 
 io.on('connection', (socket) => {
   console.log('Client connected');
@@ -34,5 +41,5 @@ io.on('connection', (socket) => {
 
 const port = process.env.PORT || 3001;
 server.listen(port, '0.0.0.0', () => {
-  console.log(`WebSocket server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });

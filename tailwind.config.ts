@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -85,12 +84,38 @@ export default {
         pulse: {
           '0%, 100%': { transform: 'scale(1)' },
           '50%': { transform: 'scale(1.05)' },
-        }
+        },
+        "fade-up": {
+          "0%": {
+            opacity: "0",
+            transform: "translateY(0) translateX(-50%)",
+          },
+          "50%": {
+            opacity: "1",
+            transform: "translateY(-20px) translateX(-50%)",
+          },
+          "100%": {
+            opacity: "0",
+            transform: "translateY(-40px) translateX(-50%)",
+          },
+        },
+        bounce: {
+          "0%, 100%": {
+            transform: "translateY(-5%)",
+            "animation-timing-function": "cubic-bezier(0.8,0,1,1)",
+          },
+          "50%": {
+            transform: "none",
+            "animation-timing-function": "cubic-bezier(0,0,0.2,1)",
+          },
+        },
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-        'pulse': 'pulse 0.5s ease-in-out'
+        'pulse': 'pulse 0.5s ease-in-out',
+        "fade-up": "fade-up 1s ease-out forwards",
+        bounce: "bounce 1s ease-in-out infinite",
 			}
 		}
 	},

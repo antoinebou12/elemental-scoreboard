@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useState, useEffect } from 'react';
 import { Element } from '@/types/elements';
 import ElementCard from '@/components/ElementCard';
 import AdminPanel from '@/components/AdminPanel';
@@ -8,6 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import WSConnectionStatus from '@/components/WSConnectionStatus';
+import { ReconnectButton } from '@/components/ReconnectButton';
+import useWebSocket from '@/hooks/useWebSocket';
 
 const initialElements: Element[] = [
   { id: 'fire', name: 'Feu', color: 'fire', points: 0, icon: 'fire' },
@@ -29,45 +31,11 @@ const Index = () => {
   const [passcode, setPasscode] = useState('');
   const { toast } = useToast();
   const correctPasscode = '1234'; // You can change this to any passcode you want
-  const socketRef = useRef<Socket | null>(null);
+  const { isConnected, emit } = useWebSocket();
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(elements));
   }, [elements]);
-
-  useEffect(() => {
-    // Initialize socket connection
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsPort = ':3001';
-    const wsUrl = `${wsProtocol}//${window.location.hostname}${wsPort}`;
-
-    socketRef.current = io(wsUrl, {
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-      transports: ['websocket', 'polling']
-    });
-
-    socketRef.current.on('connect_error', (error) => {
-      console.error('Connection error:', error);
-    });
-
-    socketRef.current.on('connect', () => {
-      console.log('Connected to WebSocket server');
-    });
-
-    socketRef.current.on('score-updated', (updatedElements) => {
-      setElements(updatedElements);
-    });
-
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, []);
 
   const handleUpdatePoints = (id: string, action: 'INCREMENT' | 'DECREMENT' | 'SET' | 'INCREMENT_BY' | 'DECREMENT_BY', value?: number) => {
     setElements(prevElements => {
@@ -121,8 +89,14 @@ const Index = () => {
       });
 
       // Emit score update through WebSocket
-      if (socketRef.current) {
-        socketRef.current.emit('score-update', newElements);
+      if (isConnected) {
+        emit('score-update', newElements);
+      } else {
+        toast({
+          title: "Hors ligne",
+          description: "Les modifications ne seront pas synchronisées",
+          variant: "destructive"
+        });
       }
       
       return newElements;
@@ -162,8 +136,26 @@ const Index = () => {
 
   const totalScore = elements.reduce((sum, element) => sum + element.points, 0);
 
+  const getWinningTeam = () => {
+    return elements.reduce((prev, current) => 
+      (prev.points > current.points) ? prev : current
+    );
+  };
+
+  const getBackgroundStyle = () => {
+    const winner = getWinningTeam();
+    const gradients = {
+      fire: 'bg-gradient-to-br from-orange-950 to-red-950',
+      air: 'bg-gradient-to-br from-sky-950 to-blue-950',
+      water: 'bg-gradient-to-br from-blue-950 to-indigo-950',
+      lightning: 'bg-gradient-to-br from-purple-950 to-violet-950',
+      earth: 'bg-gradient-to-br from-amber-950 to-yellow-950'
+    };
+    return gradients[winner.id as keyof typeof gradients] || 'bg-black';
+  };
+
   return (
-    <div className="min-h-screen bg-black">
+    <div className={`min-h-screen transition-colors duration-1000 ${getBackgroundStyle()}`}>
       <Tabs defaultValue="scores" className="container mx-auto px-4 py-2">
         <TabsList className="fixed top-4 right-4 z-50">
           <TabsTrigger value="scores">Scores</TabsTrigger>
@@ -174,11 +166,12 @@ const Index = () => {
           <div className="text-center mb-4">
             <h2 className="text-2xl font-bold text-white">Score Total: {totalScore}</h2>
           </div>
-          <div className="grid grid-cols-5 gap-8 h-[calc(100vh-80px)] px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-8 h-[calc(100vh-80px)] px-8">
             {elements.map(element => (
               <ElementCard 
                 key={element.id}
                 element={element}
+                onCardClick={isAuthenticated ? (id) => handleUpdatePoints(id, 'INCREMENT') : undefined}
               />
             ))}
           </div>
@@ -213,6 +206,8 @@ const Index = () => {
           )}
         </TabsContent>
       </Tabs>
+      <WSConnectionStatus className="fixed bottom-4 right-4" />
+      <ReconnectButton />
     </div>
   );
 };
