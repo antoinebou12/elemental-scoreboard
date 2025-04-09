@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "regions": ["cdg1"],
+  "rewrites": [
+    { "source": "/api/socketio", "destination": "/api/socketio" }
+  ]
+}

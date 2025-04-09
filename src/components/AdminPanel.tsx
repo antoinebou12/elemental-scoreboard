@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 interface AdminPanelProps {
   elements: Element[];
-  onUpdatePoints: (id: string, action: 'INCREMENT' | 'DECREMENT' | 'SET', value?: number) => void;
+  onUpdatePoints: (id: string, action: 'INCREMENT' | 'DECREMENT' | 'SET' | 'INCREMENT_BY' | 'DECREMENT_BY', value?: number) => void;
   onResetScores: () => void;
 }
 
@@ -35,6 +35,27 @@ const AdminPanel = ({ elements, onUpdatePoints, onResetScores }: AdminPanelProps
       const element = elements.find(e => e.id === selectedElement);
       if (element && element.points > 0) {
         onUpdatePoints(selectedElement, 'DECREMENT');
+      } else {
+        toast({
+          title: "Opération impossible",
+          description: "Les points ne peuvent pas être négatifs",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleIncrementBy = (amount: number) => {
+    if (selectedElement) {
+      onUpdatePoints(selectedElement, 'INCREMENT_BY', amount);
+    }
+  };
+
+  const handleDecrementBy = (amount: number) => {
+    if (selectedElement) {
+      const element = elements.find(e => e.id === selectedElement);
+      if (element && element.points >= amount) {
+        onUpdatePoints(selectedElement, 'DECREMENT_BY', amount);
       } else {
         toast({
           title: "Opération impossible",
@@ -119,21 +140,43 @@ const AdminPanel = ({ elements, onUpdatePoints, onResetScores }: AdminPanelProps
                 Élément sélectionné : {elements.find(e => e.id === selectedElement)?.name}
               </div>
               
-              <div className="flex gap-2 mb-3">
-                <Button 
-                  variant="outline" 
-                  onClick={handleDecrement}
-                  className="flex-1"
-                >
-                  -
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={handleIncrement}
-                  className="flex-1"
-                >
-                  +
-                </Button>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleDecrementBy(1)}
+                      className="flex-1"
+                    >
+                      -1
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleDecrementBy(5)}
+                      className="flex-1"
+                    >
+                      -5
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleIncrementBy(1)}
+                      className="flex-1"
+                    >
+                      +1
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleIncrementBy(5)}
+                      className="flex-1"
+                    >
+                      +5
+                    </Button>
+                  </div>
+                </div>
               </div>
               
               <div className="flex gap-2">

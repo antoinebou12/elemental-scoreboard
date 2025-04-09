@@ -35,18 +35,36 @@ const Index = () => {
   }, [elements]);
 
   useEffect(() => {
-    const socket = io();
-    
-    socket.on('scoreUpdated', (data) => {
-      setElements(data);
-    });
+    const initSocket = async () => {
+      await fetch('/api/socketio');
+      const socket = io({
+        path: '/api/socketio',
+      });
 
+      socket.on('connect', () => {
+        console.log('Connected to WebSocket');
+      });
+
+      socket.on('score-updated', (data) => {
+        setElements(data);
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Disconnected from WebSocket');
+      });
+
+      return () => {
+        socket.disconnect();
+      };
+    };
+
+    const cleanup = initSocket();
     return () => {
-      socket.disconnect();
+      cleanup.then(cleanupFn => cleanupFn?.());
     };
   }, []);
 
-  const handleUpdatePoints = (id: string, action: 'INCREMENT' | 'DECREMENT' | 'SET', value?: number) => {
+  const handleUpdatePoints = (id: string, action: 'INCREMENT' | 'DECREMENT' | 'SET' | 'INCREMENT_BY' | 'DECREMENT_BY', value?: number) => {
     setElements(prevElements => {
       const newElements = prevElements.map(element => {
         if (element.id === id) {
@@ -67,6 +85,20 @@ const Index = () => {
                 description: `Nouveau score: ${newPoints} points`,
               });
               break;
+            case 'INCREMENT_BY':
+              newPoints = element.points + (value || 0);
+              toast({
+                title: `+${value} points pour l'équipe ${element.name}`,
+                description: `Nouveau score: ${newPoints} points`,
+              });
+              break;
+            case 'DECREMENT_BY':
+              newPoints = Math.max(0, element.points - (value || 0));
+              toast({
+                title: `-${value} points pour l'équipe ${element.name}`,
+                description: `Nouveau score: ${newPoints} points`,
+              });
+              break;
             case 'SET':
               if (value !== undefined) {
                 newPoints = value;
@@ -83,9 +115,10 @@ const Index = () => {
         return element;
       });
 
-      // Emit score update through WebSocket
-      const socket = io();
-      socket.emit('scoreUpdate', newElements);
+      const socket = io({
+        path: '/api/socketio',
+      });
+      socket.emit('score-update', newElements);
       
       return newElements;
     });
@@ -136,7 +169,7 @@ const Index = () => {
           <div className="text-center mb-4">
             <h2 className="text-2xl font-bold text-white">Score Total: {totalScore}</h2>
           </div>
-          <div className="grid grid-cols-5 gap-4 h-[calc(100vh-120px)] px-4">
+          <div className="grid grid-cols-5 gap-8 h-[calc(100vh-80px)] px-8">
             {elements.map(element => (
               <ElementCard 
                 key={element.id}
