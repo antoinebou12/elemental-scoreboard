@@ -7,7 +7,17 @@
     }
   ],
   "regions": ["cdg1"],
-  "rewrites": [
-    { "source": "/api/socketio", "destination": "/api/socketio" }
+  "env": {
+    "NEXT_PUBLIC_WEBSOCKET_URL": "@websocket_url"
+  },
+  "routes": [
+    {
+      "src": "/socket.io/(.*)",
+      "dest": "/api/socketio"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
   ]
 }

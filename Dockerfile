@@ -26,12 +26,15 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/server.js ./server.js
 
 USER nextjs
 
 EXPOSE 3000
+EXPOSE 3001
 
 ENV PORT 3000
+ENV WS_PORT 3001
 ENV HOSTNAME "0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node server.js & node ./.next/standalone/server.js"]

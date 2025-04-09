@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import io from 'socket.io-client';
+import { useState, useEffect, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
 import { Element } from '@/types/elements';
 import ElementCard from '@/components/ElementCard';
 import AdminPanel from '@/components/AdminPanel';
@@ -29,38 +29,43 @@ const Index = () => {
   const [passcode, setPasscode] = useState('');
   const { toast } = useToast();
   const correctPasscode = '1234'; // You can change this to any passcode you want
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(elements));
   }, [elements]);
 
   useEffect(() => {
-    const initSocket = async () => {
-      await fetch('/api/socketio');
-      const socket = io({
-        path: '/api/socketio',
-      });
+    // Initialize socket connection
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsPort = ':3001';
+    const wsUrl = `${wsProtocol}//${window.location.hostname}${wsPort}`;
 
-      socket.on('connect', () => {
-        console.log('Connected to WebSocket');
-      });
+    socketRef.current = io(wsUrl, {
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      transports: ['websocket', 'polling']
+    });
 
-      socket.on('score-updated', (data) => {
-        setElements(data);
-      });
+    socketRef.current.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+    });
 
-      socket.on('disconnect', () => {
-        console.log('Disconnected from WebSocket');
-      });
+    socketRef.current.on('connect', () => {
+      console.log('Connected to WebSocket server');
+    });
 
-      return () => {
-        socket.disconnect();
-      };
-    };
+    socketRef.current.on('score-updated', (updatedElements) => {
+      setElements(updatedElements);
+    });
 
-    const cleanup = initSocket();
     return () => {
-      cleanup.then(cleanupFn => cleanupFn?.());
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
     };
   }, []);
 
@@ -115,10 +120,10 @@ const Index = () => {
         return element;
       });
 
-      const socket = io({
-        path: '/api/socketio',
-      });
-      socket.emit('score-update', newElements);
+      // Emit score update through WebSocket
+      if (socketRef.current) {
+        socketRef.current.emit('score-update', newElements);
+      }
       
       return newElements;
     });
